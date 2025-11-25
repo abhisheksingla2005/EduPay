@@ -139,3 +139,12 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# SSL certificates (never commit private keys)
+ssl/
+*.key
+*.cert
+*.pem
+*.crt
+*.pfx
+*.p12

@@ -1,15 +1,18 @@
 # EduPay
 
-Role-based educational assistance platform connecting Students, Donors, and Admins. Built with Node.js, Express, MongoDB (Mongoose), EJS, JWT, Socket.io **and Redis caching**.
+Role-based educational assistance platform connecting Students, Donors, and Admins. Built with Node.js, Express, MongoDB (Mongoose), EJS, JWT, Socket.io, **Redis caching**, and **optional HTTPS/SSL support**.
 
 ## Features
-- Authentication (register/login/logout) with JWT in httpOnly cookie
+- Authentication (register/login/logout) with JWT in httpOnly cookie (secure flag in HTTPS mode)
 - Roles: student, donor, admin
 - Student: create requests, view/update/delete, dashboard metrics
 - Donor: view open requests, donate (mock), live updates via Socket.io, donation history
 - Admin: read-only overview dashboard (placeholder)
-- EJS views with Bootstrap 5 and express-ejs-layouts
+- EJS views with TailwindCSS and express-ejs-layouts
 - Real-time notifications when students create requests and when requests get updated
+- **Optional HTTPS/SSL**: Run with self-signed or production certificates
+- **Redis caching**: Dashboard data caching with TTL and smart invalidation
+- **Unit testing**: Jest tests for auth, tokens, and cache utilities
 
 ## Getting Started
 
@@ -34,19 +37,48 @@ Using npm:
 npm install
 ```
 
+### SSL/HTTPS Setup (Optional)
+
+Generate self-signed SSL certificates for local development:
+
+```powershell
+node ssl/generate-cert.js
+```
+
+This creates `ssl/server.key` and `ssl/server.cert`. To verify:
+
+```powershell
+.\verify-ssl.ps1
+```
+
+See [SSL_SETUP.md](SSL_SETUP.md) for detailed instructions including production certificates.
+
 ### Run
 
-```powershell
-node server.js
-```
-
-or with auto-reload in development:
+**HTTP Mode (default):**
 
 ```powershell
-pnpm dev
+npm start
 ```
 
-App will be available at http://localhost:8080 (default PORT now 8080)
+App available at: http://localhost:8080
+
+**HTTPS Mode:**
+
+```powershell
+$env:SSL_KEY_PATH="./ssl/server.key"
+$env:SSL_CERT_PATH="./ssl/server.cert"
+$env:PORT="8443"
+npm start
+```
+
+App available at: https://localhost:8443 (accept browser warning for self-signed cert)
+
+**Development with auto-reload:**
+
+```powershell
+npm run dev
+```
 
 ### Default Environment
 ```

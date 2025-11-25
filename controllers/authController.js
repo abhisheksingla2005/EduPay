@@ -23,7 +23,13 @@ exports.register = asyncHandler(async (req, res) => {
   }
   const user = await User.create({ name, email, password, role });
   const token = generateToken({ id: user._id, role: user.role });
-  res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 24 * 60 * 60 * 1000 }); // 24 hours
+  const isSecure = process.env.NODE_ENV === 'production' || process.env.SSL_KEY_PATH;
+  res.cookie('token', token, { 
+    httpOnly: true, 
+    secure: isSecure,
+    sameSite: 'strict', 
+    maxAge: 24 * 60 * 60 * 1000 
+  }); // 24 hours
   
   // Redirect to appropriate dashboard based on role
   if (role === 'student') return res.redirect('/student/dashboard');
@@ -43,7 +49,13 @@ exports.login = asyncHandler(async (req, res) => {
     return res.status(400).render('auth/login', { title: 'Login', error: 'Invalid credentials' });
   }
   const token = generateToken({ id: user._id, role: user.role });
-  res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 24 * 60 * 60 * 1000 }); // 24 hours
+  const isSecure = process.env.NODE_ENV === 'production' || process.env.SSL_KEY_PATH;
+  res.cookie('token', token, { 
+    httpOnly: true, 
+    secure: isSecure,
+    sameSite: 'strict', 
+    maxAge: 24 * 60 * 60 * 1000 
+  }); // 24 hours
   
   // Redirect to appropriate dashboard based on role
   if (user.role === 'student') return res.redirect('/student/dashboard');

@@ -1,6 +1,8 @@
 require('dotenv').config();
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
+const https = require('https');
 const express = require('express');
 const mongoose = require('mongoose');
 const morgan = require('morgan');
@@ -10,7 +12,27 @@ const { connectDB } = require('./config/db');
 const { notFound, errorHandler } = require('./middleware/error');
 
 const app = express();
-const server = http.createServer(app);
+
+// HTTPS setup: use SSL if cert/key paths provided, otherwise HTTP
+let server;
+const useHTTPS = process.env.SSL_KEY_PATH && process.env.SSL_CERT_PATH;
+if (useHTTPS) {
+  try {
+    const sslOptions = {
+      key: fs.readFileSync(process.env.SSL_KEY_PATH),
+      cert: fs.readFileSync(process.env.SSL_CERT_PATH)
+    };
+    server = https.createServer(sslOptions, app);
+    console.log('[SSL] HTTPS enabled');
+  } catch (err) {
+    console.error('[SSL] Failed to load certificates, falling back to HTTP:', err.message);
+    server = http.createServer(app);
+  }
+} else {
+  server = http.createServer(app);
+  console.log('[SSL] Using HTTP (set SSL_KEY_PATH and SSL_CERT_PATH for HTTPS)');
+}
+
 const { Server } = require('socket.io');
 const io = new Server(server);
 // Redis setup (only attempt if REDIS_URL explicitly set)
@@ -89,7 +111,8 @@ const PORT = process.env.PORT || 8080;
   try {
     await connectDB(process.env.MONGO_URI || 'mongodb://localhost:27017/edupay');
     server.listen(PORT, () => {
-      console.log(`EduPay running at http://localhost:${PORT}`);
+      const protocol = useHTTPS ? 'https' : 'http';
+      console.log(`EduPay running at ${protocol}://localhost:${PORT}`);
       if (redisClient) console.log('[Startup] Redis caching enabled'); else console.log('[Startup] Redis disabled or not connected');
     });
   } catch (err) {
