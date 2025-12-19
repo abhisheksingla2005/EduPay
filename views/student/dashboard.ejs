@@ -1,0 +1,51 @@
+<div class="flex items-center justify-between mb-6">
+  <h2 class="text-2xl font-semibold">Hello, <%= currentUser ? currentUser.name : 'Student' %> 👋</h2>
+  <a class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow" href="/student/create-request">Create New Request</a>
+</div>
+
+<div class="grid md:grid-cols-2 gap-4 mb-6">
+  <div class="p-4 rounded-xl bg-white/80 dark:bg-slate-900/60 backdrop-blur border border-slate-200/60 dark:border-slate-700/60 shadow">
+    <div class="text-xs uppercase text-slate-500">Total Requested</div>
+    <div class="text-2xl font-semibold mt-1">₹ <%= totalRequested %></div>
+  </div>
+  <div class="p-4 rounded-xl bg-white/80 dark:bg-slate-900/60 backdrop-blur border border-slate-200/60 dark:border-slate-700/60 shadow">
+    <div class="text-xs uppercase text-slate-500">Total Funded</div>
+    <div class="text-2xl font-semibold mt-1">₹ <%= totalFunded %></div>
+  </div>
+</div>
+
+<h4 class="text-lg font-semibold mb-3">My Recent Requests</h4>
+<div class="mt-2">
+  <% if (!myRequests.length) { %>
+    <div class="alert alert-info">No requests yet. Create your first!</div>
+  <% } %>
+  <% myRequests.slice(0,5).forEach(r => { %>
+    <div class="mb-3 p-4 rounded-xl bg-white/80 dark:bg-slate-900/60 backdrop-blur border border-slate-200/60 dark:border-slate-700/60 shadow animate-fade-in" data-request-id="<%= r._id %>" data-amount-requested="<%= r.amountRequested %>">
+      <div class="flex items-center justify-between">
+        <h5 class="text-base font-semibold"><%= r.title %></h5>
+        <span class="text-xs px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 status-text"><%= r.status %></span>
+      </div>
+      <p class="text-sm text-slate-600 dark:text-slate-300 mt-1"><%= r.description %></p>
+      <div class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded mt-2 overflow-hidden">
+        <div class="progress-bar h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 transition-all duration-700" data-progress="<%= r.progress %>"></div>
+      </div>
+      <div class="text-xs mt-1">₹ <%= r.amountFunded %> / ₹ <%= r.amountRequested %></div>
+    </div>
+  <% }) %>
+</div>
+
+<script>
+  // Initialize progress widths without inline CSS parsing issues
+  document.querySelectorAll('[data-progress]').forEach(el => {
+    const pct = Number(el.getAttribute('data-progress')) || 0;
+    el.style.width = pct + '%';
+  });
+  // Optional: smooth in-view animation
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('opacity-100','translate-y-0'); } });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.animate-fade-in').forEach(el=>{
+    el.classList.add('opacity-0','translate-y-1','transition','duration-500');
+    observer.observe(el);
+  });
+</script>
