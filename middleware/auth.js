@@ -8,6 +8,21 @@ const attachUserIfExists = asyncHandler(async (req, res, next) => {
   if (!token) return next();
   const decoded = verifyToken(token);
   if (!decoded) return next();
+  
+  // Handle system admin (hardcoded admin account)
+  if (decoded.isSystemAdmin && decoded.id === 'admin' && decoded.role === 'admin') {
+    const systemAdmin = {
+      _id: 'admin',
+      name: 'System Administrator',
+      email: process.env.ADMIN_EMAIL || 'admin@edupay.com',
+      role: 'admin',
+      isSystemAdmin: true
+    };
+    req.user = systemAdmin;
+    res.locals.currentUser = systemAdmin;
+    return next();
+  }
+  
   const user = await User.findById(decoded.id).select('-password');
   if (user) {
     req.user = user;
