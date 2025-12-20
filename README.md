@@ -5,13 +5,15 @@ Role-based educational assistance platform connecting Students, Donors, and Admi
 ## Features
 - Authentication (register/login/logout) with JWT in httpOnly cookie (secure flag in HTTPS mode)
 - Roles: student, donor, admin
+- **Secure Admin Access**: Admin account uses hardcoded credentials (not available through registration)
 - Student: create requests, view/update/delete, dashboard metrics
 - Donor: view open requests, donate (mock), live updates via Socket.io, donation history
-- Admin: read-only overview dashboard (placeholder)
+- Admin: read-only overview dashboard, Redis cache monitoring
 - EJS views with TailwindCSS and express-ejs-layouts
 - Real-time notifications when students create requests and when requests get updated
 - **Optional HTTPS/SSL**: Run with self-signed or production certificates
 - **Redis caching**: Dashboard data caching with TTL and smart invalidation
+- **Browser caching**: LocalStorage-based caching for improved client-side performance
 - **Unit testing**: Jest tests for auth, tokens, and cache utilities
 
 ## Getting Started
@@ -87,7 +89,26 @@ MONGO_URI=mongodb://localhost:27017/edupay
 JWT_SECRET=change_this_secret
 REDIS_URL=redis://localhost:6379
 NODE_ENV=development
+ADMIN_EMAIL=admin@edupay.com
+ADMIN_PASSWORD=Admin@123
 ```
+
+## Admin Access
+
+The admin account is **not available through registration**. Only the system administrator can access the admin dashboard using hardcoded credentials:
+
+| Field | Default Value | Environment Variable |
+|-------|---------------|---------------------|
+| Email | `admin@edupay.com` | `ADMIN_EMAIL` |
+| Password | `Admin@123` | `ADMIN_PASSWORD` |
+
+**To login as admin:**
+1. Go to `/auth/login`
+2. Enter the admin credentials above
+3. Access the admin dashboard at `/admin/dashboard`
+4. View Redis cache data at `/admin/cache`
+
+> ⚠️ **Security Note**: Change the default admin credentials in production by setting `ADMIN_EMAIL` and `ADMIN_PASSWORD` environment variables.
 
 ## Folder Structure
 ```
@@ -106,11 +127,13 @@ server.js        -> Entrypoint with Express + Socket.io
 - JWT stored in httpOnly cookie named `token`.
 - Socket.io rooms: users join `students` or `donors` room based on meta tag included in layout; server emits updates accordingly.
 - Payments are mocked via `Payment` model as a placeholder.
+- **Admin authentication**: Admin users cannot register through the UI. Only hardcoded credentials work (configurable via environment variables).
 - Redis caching:
 	- Student dashboard (totals + recent requests) cached for 60s under key `student:dashboard:<id>`.
 	- Donor open requests list cached for 30s (no search query) under key `donor:dashboard:open`.
 	- Cache automatically invalidated on request create/update/delete and on donations.
 	- If Redis is unreachable the app continues without caching (graceful fallback).
+- Browser caching: LocalStorage used to cache dashboard data on the client side for faster page loads.
 
 ## Next Steps / Enhancements
 - Add request verification workflow for admins
