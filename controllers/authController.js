@@ -9,6 +9,17 @@ const ADMIN_CREDENTIALS = {
   name: 'System Administrator'
 };
 
+// Cookie options - disable secure for self-signed certs in development
+const getCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProduction, // Only secure in production (self-signed certs don't work with secure)
+    sameSite: isProduction ? 'strict' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  };
+};
+
 exports.getLoginPage = (req, res) => {
   if (req.user) return res.redirect('/');
   res.render('auth/login', { title: 'Login' });
@@ -34,13 +45,7 @@ exports.register = asyncHandler(async (req, res) => {
   }
   const user = await User.create({ name, email, password, role });
   const token = generateToken({ id: user._id, role: user.role });
-  const isSecure = process.env.NODE_ENV === 'production' || process.env.SSL_KEY_PATH;
-  res.cookie('token', token, { 
-    httpOnly: true, 
-    secure: isSecure,
-    sameSite: 'strict', 
-    maxAge: 24 * 60 * 60 * 1000 
-  }); // 24 hours
+  res.cookie('token', token, getCookieOptions());
   
   // Redirect to appropriate dashboard based on role
   if (role === 'student') return res.redirect('/student/dashboard');
@@ -54,13 +59,7 @@ exports.login = asyncHandler(async (req, res) => {
   // Check for hardcoded admin login
   if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
     const token = generateToken({ id: 'admin', role: 'admin', isSystemAdmin: true });
-    const isSecure = process.env.NODE_ENV === 'production' || process.env.SSL_KEY_PATH;
-    res.cookie('token', token, { 
-      httpOnly: true, 
-      secure: isSecure,
-      sameSite: 'strict', 
-      maxAge: 24 * 60 * 60 * 1000 
-    }); // 24 hours
+    res.cookie('token', token, getCookieOptions());
     return res.redirect('/admin/dashboard');
   }
   
@@ -79,13 +78,7 @@ exports.login = asyncHandler(async (req, res) => {
     return res.status(400).render('auth/login', { title: 'Login', error: 'Invalid credentials' });
   }
   const token = generateToken({ id: user._id, role: user.role });
-  const isSecure = process.env.NODE_ENV === 'production' || process.env.SSL_KEY_PATH;
-  res.cookie('token', token, { 
-    httpOnly: true, 
-    secure: isSecure,
-    sameSite: 'strict', 
-    maxAge: 24 * 60 * 60 * 1000 
-  }); // 24 hours
+  res.cookie('token', token, getCookieOptions());
   
   // Redirect to appropriate dashboard based on role
   if (user.role === 'student') return res.redirect('/student/dashboard');
