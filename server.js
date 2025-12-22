@@ -35,16 +35,6 @@ if (useHTTPS) {
 
 const { Server } = require('socket.io');
 const io = new Server(server);
-// Redis setup (only attempt if REDIS_URL explicitly set)
-let redisClient = null;
-if (process.env.REDIS_URL) {
-  const { initRedis } = require('./config/redis');
-  initRedis()
-    .then((client) => { redisClient = client; app.locals.redis = client; })
-    .catch(() => { console.warn('[Redis] proceeding without cache'); });
-} else {
-  console.log('[Redis] Skipped initialization (REDIS_URL not provided)');
-}
 
 // Attach io to app for access in controllers
 app.set('io', io);
@@ -110,10 +100,24 @@ const PORT = process.env.PORT || 8080;
 (async () => {
   try {
     await connectDB(process.env.MONGO_URI || 'mongodb://localhost:27017/edupay');
+    
+    // Initialize Redis BEFORE starting server
+    if (process.env.REDIS_URL) {
+      const { initRedis } = require('./config/redis');
+      await initRedis();
+    }
+    
+    // Check if Redis is ready
+    const { isReady } = require('./config/redis');
+    
     server.listen(PORT, () => {
       const protocol = useHTTPS ? 'https' : 'http';
       console.log(`EduPay running at ${protocol}://localhost:${PORT}`);
-      if (redisClient) console.log('[Startup] Redis caching enabled'); else console.log('[Startup] Redis disabled or not connected');
+      if (isReady()) {
+        console.log('[Startup] Redis caching ENABLED');
+      } else {
+        console.log('[Startup] Redis caching DISABLED');
+      }
     });
   } catch (err) {
     console.error('Failed to start server:', err);

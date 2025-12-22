@@ -5,6 +5,25 @@ const asyncHandler = require('../utils/asyncHandler');
 
 const { getJSON, setJSON, del } = require('../utils/cache');
 
+// Helper to refresh donor dashboard cache
+async function refreshDonorCache(app) {
+  const cacheKey = 'donor:dashboard:open';
+  const requests = await Request.find({ status: 'open' }).populate('student', 'name').sort({ createdAt: -1 }).lean({ virtuals: true });
+  await setJSON(app, cacheKey, requests, 300);
+  return requests;
+}
+
+// Helper to refresh student dashboard cache
+async function refreshStudentCache(app, studentId) {
+  const cacheKey = `student:dashboard:${studentId}`;
+  const myRequests = await Request.find({ student: studentId }).sort({ createdAt: -1 }).lean({ virtuals: true });
+  const totalRequested = myRequests.reduce((sum, r) => sum + r.amountRequested, 0);
+  const totalFunded = myRequests.reduce((sum, r) => sum + r.amountFunded, 0);
+  const data = { myRequests, totalRequested, totalFunded };
+  await setJSON(app, cacheKey, data, 300);
+  return data;
+}
+
 exports.getDashboard = asyncHandler(async (req, res) => {
   const q = req.query.q || '';
   const filter = { status: 'open' };
@@ -21,7 +40,7 @@ exports.getDashboard = asyncHandler(async (req, res) => {
   }
   if (!requests) {
     requests = await Request.find(filter).populate('student', 'name').sort({ createdAt: -1 }).lean({ virtuals: true });
-    if (!q) await setJSON(req.app, cacheKey, requests, 30); // 30s cache for open list when no search
+    if (!q) await setJSON(req.app, cacheKey, requests, 300); // cache 5 minutes
   }
   res.render('donor/dashboard', { title: 'Donor Dashboard', requests, q });
 });
@@ -38,9 +57,9 @@ exports.postDonate = asyncHandler(async (req, res) => {
   request.amountFunded += amt;
   if (request.amountFunded >= request.amountRequested) request.status = 'funded';
   await request.save();
-  // Invalidate caches affected by donation
-  await del(req.app, 'donor:dashboard:open');
-  await del(req.app, `student:dashboard:${request.student}`);
+  // Refresh caches with updated data
+  await refreshDonorCache(req.app);
+  await refreshStudentCache(req.app, request.student);
 
   // Update donors and student via socket
   const io = req.app.get('io');

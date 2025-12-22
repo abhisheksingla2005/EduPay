@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Request = require('../models/Request');
 const Donation = require('../models/Donation');
 const asyncHandler = require('../utils/asyncHandler');
+const cache = require('../utils/cache');
 
 exports.getDashboard = asyncHandler(async (req, res) => {
   const [users, requests, donations] = await Promise.all([
@@ -13,9 +14,9 @@ exports.getDashboard = asyncHandler(async (req, res) => {
 });
 
 exports.getCacheView = asyncHandler(async (req, res) => {
-  const redis = req.app.locals.redis;
+  const { isReady } = require('../config/redis');
   
-  if (!redis) {
+  if (!isReady()) {
     return res.render('admin/cache', { 
       title: 'Redis Cache', 
       redisEnabled: false, 
@@ -30,22 +31,24 @@ exports.getCacheView = asyncHandler(async (req, res) => {
     let allKeys = [];
     
     for (const pattern of patterns) {
-      const keys = await redis.keys(pattern);
-      allKeys = allKeys.concat(keys);
+      const foundKeys = await cache.keys(pattern);
+      allKeys = allKeys.concat(foundKeys);
     }
+
+    console.log('[Admin Cache] Found keys:', allKeys);
 
     // Fetch values and TTL for each key
     const cacheData = await Promise.all(
       allKeys.map(async (key) => {
-        const value = await redis.get(key);
-        const ttl = await redis.ttl(key);
+        const value = await cache.get(key);
+        const keyTtl = await cache.ttl(key);
         let parsedValue = value;
         try {
           parsedValue = JSON.parse(value);
         } catch (e) {
           // Keep as string if not JSON
         }
-        return { key, value: parsedValue, ttl };
+        return { key, value: parsedValue, ttl: keyTtl };
       })
     );
 

@@ -4,15 +4,30 @@ const asyncHandler = require('../utils/asyncHandler');
 
 const { getJSON, setJSON, del } = require('../utils/cache');
 
+// Helper to refresh student dashboard cache
+async function refreshStudentCache(app, studentId) {
+  const cacheKey = `student:dashboard:${studentId}`;
+  const myRequests = await Request.find({ student: studentId }).sort({ createdAt: -1 }).lean({ virtuals: true });
+  const totalRequested = myRequests.reduce((sum, r) => sum + r.amountRequested, 0);
+  const totalFunded = myRequests.reduce((sum, r) => sum + r.amountFunded, 0);
+  const data = { myRequests, totalRequested, totalFunded };
+  await setJSON(app, cacheKey, data, 300);
+  return data;
+}
+
+// Helper to refresh donor dashboard cache
+async function refreshDonorCache(app) {
+  const cacheKey = 'donor:dashboard:open';
+  const requests = await Request.find({ status: 'open' }).populate('student', 'name').sort({ createdAt: -1 }).lean({ virtuals: true });
+  await setJSON(app, cacheKey, requests, 300);
+  return requests;
+}
+
 exports.getDashboard = asyncHandler(async (req, res) => {
   const cacheKey = `student:dashboard:${req.user._id}`;
   let cached = await getJSON(req.app, cacheKey);
   if (!cached) {
-    const myRequests = await Request.find({ student: req.user._id }).sort({ createdAt: -1 }).lean({ virtuals: true });
-    const totalRequested = myRequests.reduce((sum, r) => sum + r.amountRequested, 0);
-    const totalFunded = myRequests.reduce((sum, r) => sum + r.amountFunded, 0);
-    cached = { myRequests, totalRequested, totalFunded };
-    await setJSON(req.app, cacheKey, cached, 60); // cache 60s
+    cached = await refreshStudentCache(req.app, req.user._id);
   }
   res.render('student/dashboard', { title: 'Student Dashboard', ...cached });
 });
@@ -45,9 +60,9 @@ exports.postCreateRequest = asyncHandler(async (req, res) => {
     createdAt: request.createdAt,
   });
 
-  // Invalidate student dashboard cache & donor dashboard cache
-  await del(req.app, `student:dashboard:${req.user._id}`);
-  await del(req.app, 'donor:dashboard:open');
+  // Refresh caches with updated data
+  await refreshStudentCache(req.app, req.user._id);
+  await refreshDonorCache(req.app);
   res.redirect('/student/my-requests');
 });
 
@@ -67,8 +82,9 @@ exports.postUpdateRequest = asyncHandler(async (req, res) => {
   request.amountRequested = amountRequested ? Number(amountRequested) : request.amountRequested;
   request.deadline = deadline ? new Date(deadline) : request.deadline;
   await request.save();
-  await del(req.app, `student:dashboard:${req.user._id}`);
-  await del(req.app, 'donor:dashboard:open');
+  // Refresh caches with updated data
+  await refreshStudentCache(req.app, req.user._id);
+  await refreshDonorCache(req.app);
   res.redirect('/student/my-requests');
 });
 
@@ -78,7 +94,8 @@ exports.postDeleteRequest = asyncHandler(async (req, res) => {
   if (!request) return res.status(404).render('errors/404', { title: 'Not Found' });
   if (request.amountFunded > 0) return res.status(400).render('student/my-requests', { title: 'My Requests', error: 'Cannot delete a request that has donations.' });
   await request.deleteOne();
-  await del(req.app, `student:dashboard:${req.user._id}`);
-  await del(req.app, 'donor:dashboard:open');
+  // Refresh caches with updated data
+  await refreshStudentCache(req.app, req.user._id);
+  await refreshDonorCache(req.app);
   res.redirect('/student/my-requests');
 });
