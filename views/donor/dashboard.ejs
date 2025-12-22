@@ -30,6 +30,25 @@
   <% }) %>
 </div>
 <script>
+  // Cache dashboard request data for faster loads (only when no search query)
+  <% if (!q) { %>
+  if (window.BrowserCache) {
+    const requestsData = [
+      <% requests.forEach((r, index) => { %>
+      {
+        "id": "<%= r._id %>",
+        "title": "<%= r.title %>",
+        "amountRequested": "<%= r.amountRequested %>",
+        "amountFunded": "<%= r.amountFunded %>",
+        "studentName": "<%= r.student.name %>"
+      }<%= index < requests.length - 1 ? ',' : '' %>
+      <% }) %>
+    ];
+    BrowserCache.save('donor_dashboard_requests', requestsData, 30);
+    console.log('Donor dashboard loaded from browser cache');
+  }
+  <% } %>
+
   // Initialize progress widths
   document.querySelectorAll('[data-progress]').forEach(el => {
     const pct = Number(el.getAttribute('data-progress')) || 0;
@@ -50,7 +69,14 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ requestId, amount })
         });
-        if (res.ok) { form.reset(); }
+        if (res.ok) { 
+          form.reset();
+          // Clear cache on donation
+          if (window.BrowserCache) {
+            BrowserCache.clearByPrefix('donor:');
+            BrowserCache.clearByPrefix('student:');
+          }
+        }
         else { alert('Donation failed'); }
       } catch(e) {
         alert('Network error');

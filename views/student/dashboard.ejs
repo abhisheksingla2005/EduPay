@@ -35,6 +35,16 @@
 </div>
 
 <script>
+  // Cache dashboard data for faster subsequent loads
+  const dashboardData = {
+    totalRequested: <%= totalRequested %>,
+    totalFunded: <%= totalFunded %>,
+    requestCount: <%= myRequests.length %>
+  };
+  if (window.BrowserCache) {
+    BrowserCache.save('student:dashboard:<%= currentUser ? currentUser._id : "unknown" %>', dashboardData, 60);
+  }
+
   // Initialize progress widths without inline CSS parsing issues
   document.querySelectorAll('[data-progress]').forEach(el => {
     const pct = Number(el.getAttribute('data-progress')) || 0;
